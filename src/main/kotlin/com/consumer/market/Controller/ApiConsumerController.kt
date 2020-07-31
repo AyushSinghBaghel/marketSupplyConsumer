@@ -2,6 +2,7 @@ package com.consumer.market.Controller
 
 import com.consumer.market.Model.FruitSupplyModel
 import com.consumer.market.Model.GrainSupplyModel
+import com.consumer.market.Model.ItemFinder
 import com.consumer.market.Model.VegetableSupplyModel
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.HttpHeaders
@@ -9,7 +10,10 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.client.RestTemplate
+import java.lang.Double
 import java.util.*
+import kotlin.collections.HashMap
+
 
 @RestController
 class ApiConsumerController {
@@ -18,6 +22,9 @@ class ApiConsumerController {
     var grainURL: String = "https://run.mocky.io/v3/e6c77e5c-aec9-403f-821b-e14114220148"
     var vegetableURL: String = "https://run.mocky.io/v3/4ec58fbc-e9e5-4ace-9ff0-4e893ef9663c"
     var index = 0
+    var temp: MutableMap<String, ItemFinder> = java.util.HashMap<String, ItemFinder>()
+
+
 
     @Autowired
     var restTemplate: RestTemplate? = null
@@ -102,9 +109,25 @@ class ApiConsumerController {
      * Exact information provided in counsumed API
      */
     @RequestMapping(value = ["/buy-item-qty-price/{id}/{quantity}/{price}"])
-    fun searchProductList(@PathVariable("id") id: String?, @PathVariable("quantity") quantity: String?, @PathVariable("price") price: String?): String? {
+    fun searchProductList(@PathVariable("id") id: String, @PathVariable("quantity") quantity: String, @PathVariable("price") price: String): String {
         val headers = HttpHeaders()
         headers.add("Content-Type", "application/json")
+
+        var ITEM = id
+        var QUANTITY = quantity
+        var PRICE = price
+        var foundCachedItem = false
+
+        for ((key, value) in temp) {
+            if (key.equals(id, ignoreCase = true)) {
+                if (converter(value.price)!!.toDouble() >= converter(PRICE!!)!!.toDouble() && value.quantity.toInt() >= QUANTITY!!.toInt()) {
+                    foundCachedItem = true
+                }
+            }
+        }
+        if (foundCachedItem) {
+            return "Found cached item $id $quantity $price";
+        }
 
         val fruitResponse = RestTemplate().getForEntity(fruitUrl, Array<FruitSupplyModel>::class.java)
         val fruits = fruitResponse.body
@@ -112,79 +135,87 @@ class ApiConsumerController {
             for (i in fruits.indices) {
                 if (fruits != null) {
                     if (id.equals(fruits.get(i).getName(), ignoreCase = true) && quantity.equals(fruits.get(i).getQuantity(), ignoreCase = true)
-                            && price.equals(fruits.get(i).getPrice(), ignoreCase = true)) {
+                            && Double.parseDouble(price?.let { converter(it) }) <= Double.parseDouble(fruits.get(i).getPrice()?.let { converter(it) })) {
                         index = i
                     }
                 }
             }
         }
+
         val itemIsPresent = Arrays.stream(fruits).anyMatch { o: FruitSupplyModel? -> id.equals(o?.getName()?.trim { it <= ' ' }, ignoreCase = true) }
         val quantityIsPresent = Arrays.stream(fruits).anyMatch { q: FruitSupplyModel? -> quantity.equals(q?.getQuantity()?.trim { it <= ' ' }, ignoreCase = true) }
-        val priceIsPresent = Arrays.stream(fruits).anyMatch { p: FruitSupplyModel? -> price.equals(p?.getPrice()?.trim { it <= ' ' }, ignoreCase = true) }
+        val priceIsPresent = Arrays.stream(fruits).anyMatch { p -> PRICE?.let { converter(it) }!!.toDouble() > converter(p.getPrice()!!)!!.toDouble() }
 
         if (itemIsPresent && quantityIsPresent && priceIsPresent) {
             val f = FruitSupplyModel()
             if (fruits != null) {
-                f.setName(fruits.get(index).getName())
-                f.setPrice(fruits.get(index).getPrice())
-                f.setQuantity(fruits.get(index).getQuantity())
+                f.setName(id)
+                f.setQuantity(quantity)
+                f.setPrice(price)
+                temp[id] = ItemFinder(price, quantity)
             }
-            return fruits?.get(index).toString()
+            return f.toString()
         } else {
             //we will search in the Vegetables
             val vegetableResponse = RestTemplate().getForEntity(vegetableURL, Array<VegetableSupplyModel>::class.java)
             val vegetable = vegetableResponse.body
             if (vegetable != null) {
                 for (j in vegetable.indices) {
-                    if (id == vegetable.get(j)?.getProductName() && quantity.equals(vegetable.get(j)?.getQuantity(), ignoreCase = true)
-                            && price.equals(vegetable.get(j)?.getPrice(), ignoreCase = true)) {
+                    if (id.equals(vegetable.get(j).getProductName(), ignoreCase = true) && quantity.equals(vegetable.get(j).getQuantity(), ignoreCase = true)
+                            && Double.parseDouble(price?.let { converter(it) }) <= Double.parseDouble(vegetable.get(j).getPrice()?.let { converter(it) })) {
                         index = j
                     }
                 }
             }
             val productPresent = Arrays.stream(vegetable).anyMatch { op: VegetableSupplyModel? -> id.equals(op?.getProductName()?.trim { it <= ' ' }, ignoreCase = true) }
             val vegQuantityIsPresent = Arrays.stream(vegetable).anyMatch { vq: VegetableSupplyModel? -> quantity.equals(vq?.getQuantity()?.trim { it <= ' ' }, ignoreCase = true) }
-            val vegPriceIsPresent = Arrays.stream(vegetable).anyMatch { vp: VegetableSupplyModel? -> price.equals(vp?.getPrice()?.trim { it <= ' ' }, ignoreCase = true) }
+            val vegPriceIsPresent = Arrays.stream(vegetable).anyMatch { vp -> PRICE?.let { converter(it) }!!.toDouble() > converter(vp.getPrice()!!)!!.toDouble() }
 
             if (productPresent && vegQuantityIsPresent && vegPriceIsPresent) {
 
-                val f = VegetableSupplyModel()
+                val v = VegetableSupplyModel()
                 if (vegetable != null) {
-                    f.setProductName(vegetable.get(index).getProductName())
-                    f.setPrice(vegetable.get(index).getPrice())
-                    f.setQuantity(vegetable.get(index).getQuantity())
+                    v.setProductName(id)
+                    v.setQuantity(quantity)
+                    v.setPrice(price)
+                    temp[id] = ItemFinder(price, quantity)
                 }
-                return vegetable?.get(index).toString()
+                return v.toString()
             } else {
                 // we will search in the Grain Store
                 val garinResponse = RestTemplate().getForEntity(grainURL, Array<GrainSupplyModel>::class.java)
                 val grains = garinResponse.body
                 if (grains != null) {
                     for (k in grains.indices) {
-                        if (id == grains.get(k).getItemName() && quantity.equals(grains.get(k).getQuantity(), ignoreCase = true)
-                                && price.equals(grains.get(k).getPrice(), ignoreCase = true)) {
-                            index = k
+                            if (id.equals(grains.get(k).getItemName(), ignoreCase = true) && quantity.equals(grains.get(k).getQuantity(), ignoreCase = true)
+                                    && Double.parseDouble(price?.let { converter(it) }) <= Double.parseDouble(grains.get(k).getPrice()?.let { converter(it) })) {
+                                index = k
                         }
                     }
                 }
                 val grainItemIsPresent = Arrays.stream(grains).anyMatch { gi: GrainSupplyModel? -> id.equals(gi?.getItemName()?.trim { it <= ' ' }, ignoreCase = true) }
                 val grainQuantityIsPresent = Arrays.stream(grains).anyMatch { gq: GrainSupplyModel? -> quantity.equals(gq?.getQuantity()?.trim { it <= ' ' }, ignoreCase = true) }
-                val grainPriceIsPresent = Arrays.stream(grains).anyMatch { gp: GrainSupplyModel? -> price.equals(gp?.getPrice()?.trim { it <= ' ' }, ignoreCase = true) }
+                val grainPriceIsPresent = Arrays.stream(grains).anyMatch { gp -> PRICE?.let { converter(it) }!!.toDouble() > converter(gp.getPrice()!!)!!.toDouble() }
 
                 if (grainItemIsPresent && grainQuantityIsPresent && grainPriceIsPresent) {
                     val g = GrainSupplyModel()
                     if (grains != null) {
-                        g.setItemName(grains.get(index).getItemName())
-                        g.setQuantity(grains.get(index).getQuantity())
-                        g.setPrice(grains.get(index).getPrice())
+                        g.setItemName(id)
+                        g.setQuantity(quantity)
+                        g.setPrice(price)
+                        temp[id] = ItemFinder(price, quantity)
                     }
-                    return grains?.get(index).toString()
+                    return g.toString()
                 } else {
 
                     return "NO_ITEM_FOUND"
                 }
             }
         }
+    }
+    fun converter(price: String): String? {
+        return price.substring(1)
+
     }
 }
 

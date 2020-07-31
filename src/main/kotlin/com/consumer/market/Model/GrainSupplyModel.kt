@@ -3,8 +3,8 @@ package com.consumer.market.Model
 class GrainSupplyModel {
     private var itemId: String? = ""
     private var itemName: String? = ""
-    private var quantity: String? = "null"
-    private var price: String? = "null"
+    private var quantity: String? = ""
+    private var price: String? = ""
 
     fun getItemId(): String? {
         return itemId
