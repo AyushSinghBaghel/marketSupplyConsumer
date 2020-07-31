@@ -144,7 +144,7 @@ class ApiConsumerController {
 
         val itemIsPresent = Arrays.stream(fruits).anyMatch { o: FruitSupplyModel? -> id.equals(o?.getName()?.trim { it <= ' ' }, ignoreCase = true) }
         val quantityIsPresent = Arrays.stream(fruits).anyMatch { q: FruitSupplyModel? -> quantity.equals(q?.getQuantity()?.trim { it <= ' ' }, ignoreCase = true) }
-        val priceIsPresent = Arrays.stream(fruits).anyMatch { p -> PRICE?.let { converter(it) }!!.toDouble() > converter(p.getPrice()!!)!!.toDouble() }
+        val priceIsPresent = Arrays.stream(fruits).anyMatch { p -> PRICE?.let { converter(it) }!!.toDouble() <= converter(p.getPrice()!!)!!.toDouble() }
 
         if (itemIsPresent && quantityIsPresent && priceIsPresent) {
             val f = FruitSupplyModel()
@@ -169,7 +169,7 @@ class ApiConsumerController {
             }
             val productPresent = Arrays.stream(vegetable).anyMatch { op: VegetableSupplyModel? -> id.equals(op?.getProductName()?.trim { it <= ' ' }, ignoreCase = true) }
             val vegQuantityIsPresent = Arrays.stream(vegetable).anyMatch { vq: VegetableSupplyModel? -> quantity.equals(vq?.getQuantity()?.trim { it <= ' ' }, ignoreCase = true) }
-            val vegPriceIsPresent = Arrays.stream(vegetable).anyMatch { vp -> PRICE?.let { converter(it) }!!.toDouble() > converter(vp.getPrice()!!)!!.toDouble() }
+            val vegPriceIsPresent = Arrays.stream(vegetable).anyMatch { vp -> PRICE?.let { converter(it) }!!.toDouble() <= converter(vp.getPrice()!!)!!.toDouble() }
 
             if (productPresent && vegQuantityIsPresent && vegPriceIsPresent) {
 
@@ -195,7 +195,7 @@ class ApiConsumerController {
                 }
                 val grainItemIsPresent = Arrays.stream(grains).anyMatch { gi: GrainSupplyModel? -> id.equals(gi?.getItemName()?.trim { it <= ' ' }, ignoreCase = true) }
                 val grainQuantityIsPresent = Arrays.stream(grains).anyMatch { gq: GrainSupplyModel? -> quantity.equals(gq?.getQuantity()?.trim { it <= ' ' }, ignoreCase = true) }
-                val grainPriceIsPresent = Arrays.stream(grains).anyMatch { gp -> PRICE?.let { converter(it) }!!.toDouble() > converter(gp.getPrice()!!)!!.toDouble() }
+                val grainPriceIsPresent = Arrays.stream(grains).anyMatch { gp -> PRICE?.let { converter(it) }!!.toDouble() <= converter(gp.getPrice()!!)!!.toDouble() }
 
                 if (grainItemIsPresent && grainQuantityIsPresent && grainPriceIsPresent) {
                     val g = GrainSupplyModel()
